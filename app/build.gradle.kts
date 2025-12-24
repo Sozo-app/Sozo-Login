@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    id("com.apollographql.apollo3") version "3.7.0"
 }
 
 android {
@@ -33,16 +34,42 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
+    buildFeatures {
+        viewBinding = true
+    }
+}
+apollo {
+    packageName.set("com.azamovme.sozotvlogin")
+    generateKotlinModels.set(true)
+    excludes.add("**/schema.json.graphql")
 }
 
 dependencies {
-
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.appcompat)
+    implementation(libs.appcompat)
     implementation(libs.material)
-    implementation(libs.androidx.activity)
-    implementation(libs.androidx.constraintlayout)
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
+    implementation(libs.constraintlayout)
+
+    implementation(libs.navigation.fragment)
+    implementation(libs.navigation.ui)
+
+    implementation(libs.lifecycle.runtime)
+    implementation(libs.lifecycle.viewmodel)
+    implementation(libs.fragment.ktx)
+
+    implementation(libs.koin.android)
+
+    implementation(libs.apollo.runtime)
+    implementation(libs.okhttp)
+
+    implementation(libs.datastore.preferences)
+
+    implementation(libs.androidx.browser)
+    implementation(libs.coil)
+    implementation(libs.camerax.camera2)
+    implementation(libs.camerax.lifecycle)
+    implementation(libs.camerax.view)
+    implementation(libs.mlkit.barcode)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.database)
+
 }

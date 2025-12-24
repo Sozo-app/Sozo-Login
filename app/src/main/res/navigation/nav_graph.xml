@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/splashScreen">
+
+    <fragment
+        android:id="@+id/loginFragment"
+        android:name="com.azamovme.sozotvlogin.ui.pages.LoginScreen"
+        android:label="Login">
+        <action
+            android:id="@+id/action_login_to_profile"
+            app:destination="@id/profileFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/qrLoginFragment"
+        android:name="com.azamovme.sozotvlogin.ui.pages.QrLoginScreen"
+        android:label="QR Login" />
+
+    <fragment
+        android:id="@+id/profileFragment"
+        android:name="com.azamovme.sozotvlogin.ui.pages.ProfileScreen"
+        android:label="Profile">
+        <action
+            android:id="@+id/action_profile_to_qr"
+            app:destination="@id/qrLoginFragment" />
+        <action
+            android:id="@+id/action_profile_to_login"
+            app:destination="@id/loginFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/splashScreen"
+        android:name="com.azamovme.sozotvlogin.ui.pages.SplashScreen"
+        android:label="splash_screen"
+        tools:layout="@layout/splash_screen" >
+        <action
+            android:id="@+id/action_splashScreen_to_profileFragment"
+            app:destination="@id/profileFragment" />
+        <action
+            android:id="@+id/action_splashScreen_to_loginFragment"
+            app:destination="@id/loginFragment" />
+    </fragment>
+</navigation>

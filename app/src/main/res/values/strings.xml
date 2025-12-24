@@ -1,3 +1,19 @@
 <resources>
     <string name="app_name">SozoTvLogin</string>
+    <string name="welcome">Welcome to Sozo</string>
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="connect_to_tv">Connect to TV</string>
+    <string name="log_out">Log out</string>
+    <string name="login_to_continue_and_manage_your_account">Login to continue and manage your account.</string>
+    <string name="sign_in">Sign in</string>
+    <string name="login">Login with AniList</string>
+    <string name="continue_in_browser">Continue in browser</string>
+    <string name="telegram">Telegram</string>
+    <string name="official_site">Official site</string>
+    <string name="refresh_code">Refresh code</string>
+    <string name="close">Close</string>
+    <string name="point_the_camera_at_the_qr_code">Point the camera at the QR code</string>
+    <string name="make_sure_it_fits_inside_the_frame">Make sure it fits inside the frame.</string>
+    <string name="ready_to_scan">Ready to scan...</string>
+    <string name="sozo_login_manager">Sozo Login Manager</string>
 </resources>
