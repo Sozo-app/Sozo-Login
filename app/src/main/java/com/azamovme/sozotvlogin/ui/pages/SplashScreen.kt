@@ -38,9 +38,9 @@ class SplashScreen : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        viewLifecycleOwner.lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launchWhenResumed {
             delay(1000)
-            if (!isAdded) return@launch
+            if (!isAdded) return@launchWhenResumed
 
             val token = tokenStore.readToken()
 
