@@ -1,7 +1,10 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    //noinspection NewerVersionAvailable
     id("com.apollographql.apollo3") version "3.7.0"
+    alias(libs.plugins.google.services)
+
 }
 
 android {

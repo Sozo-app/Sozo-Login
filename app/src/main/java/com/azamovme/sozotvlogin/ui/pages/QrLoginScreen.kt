@@ -4,6 +4,7 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -16,20 +17,25 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
-import com.azamovme.sozotvlogin.databinding.QrLoginScreenBinding
+import com.azamovme.sozotvlogin.R
 import com.azamovme.sozotvlogin.data.pref.TokenStore
-import com.google.firebase.Firebase
+import com.azamovme.sozotvlogin.databinding.QrLoginScreenBinding
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ServerValue
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
-import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
 import org.koin.android.ext.android.inject
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 
 class QrLoginScreen : Fragment() {
 
@@ -38,12 +44,12 @@ class QrLoginScreen : Fragment() {
 
     private val tokenStore: TokenStore by inject()
     private val firebaseDatabase: FirebaseDatabase by inject()
-    private val scope = MainScope()
 
     private var camera: Camera? = null
-    private val executor = Executors.newSingleThreadExecutor()
+    private var cameraProvider: ProcessCameraProvider? = null
 
-    private var isHandled = false
+    private val executor = Executors.newSingleThreadExecutor()
+    private val handled = AtomicBoolean(false)
 
     private val scanner by lazy {
         val options = BarcodeScannerOptions.Builder()
@@ -73,9 +79,7 @@ class QrLoginScreen : Fragment() {
 
         setState(UiState.Scanning)
 
-        binding.btnClose.setOnClickListener {
-            findNavController().popBackStack()
-        }
+        binding.btnClose.setOnClickListener { findNavController().popBackStack() }
 
         binding.btnFlash.setOnClickListener {
             val c = camera ?: return@setOnClickListener
@@ -87,30 +91,33 @@ class QrLoginScreen : Fragment() {
         else requestPermissions(arrayOf(Manifest.permission.CAMERA), REQ_CAMERA)
     }
 
+    private fun withBinding(block: (QrLoginScreenBinding) -> Unit) {
+        val b = _binding ?: return
+        if (!isAdded) return
+        block(b)
+    }
+
     private fun setState(state: UiState) {
-        when (state) {
-            UiState.Scanning -> {
-                binding.progress.visibility = View.GONE
-                binding.tvStatus.text = "Ready to scan TV QR..."
-                isHandled = false
-            }
-
-            UiState.Sending -> {
-                binding.progress.visibility = View.VISIBLE
-                binding.tvStatus.text = "Connecting..."
-            }
-
-            is UiState.Error -> {
-                binding.progress.visibility = View.GONE
-                binding.tvStatus.text = state.msg
-                isHandled = false
-            }
-
-            UiState.Success -> {
-                binding.progress.visibility = View.GONE
-                binding.tvStatus.text = "Connected."
-                findNavController().popBackStack()
-                Toast.makeText(requireActivity(), "Tv connected", Toast.LENGTH_SHORT).show()
+        withBinding { b ->
+            when (state) {
+                UiState.Scanning -> {
+                    b.progress.visibility = View.GONE
+                    b.tvStatus.text = getString(R.string.ready_to_scan_tv_qr)
+                    handled.set(false)
+                }
+                UiState.Sending -> {
+                    b.progress.visibility = View.VISIBLE
+                    b.tvStatus.text = getString(R.string.connecting)
+                }
+                is UiState.Error -> {
+                    b.progress.visibility = View.GONE
+                    b.tvStatus.text = state.msg
+                    handled.set(false)
+                }
+                UiState.Success -> {
+                    b.progress.visibility = View.GONE
+                    b.tvStatus.text = getString(R.string.connected)
+                }
             }
         }
     }
@@ -129,29 +136,28 @@ class QrLoginScreen : Fragment() {
         grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == REQ_CAMERA && grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            startCamera()
-        } else {
-            findNavController().popBackStack()
-        }
+        if (requestCode == REQ_CAMERA &&
+            grantResults.isNotEmpty() &&
+            grantResults[0] == PackageManager.PERMISSION_GRANTED
+        ) startCamera()
+        else findNavController().popBackStack()
     }
 
     private fun startCamera() {
         val future = ProcessCameraProvider.getInstance(requireContext())
         future.addListener({
             val provider = future.get()
+            cameraProvider = provider
 
             val preview = Preview.Builder()
                 .build()
-                .also { it.surfaceProvider = binding.previewView.surfaceProvider }
+                .also { it.setSurfaceProvider(binding.previewView.surfaceProvider) }
 
             val analysis = ImageAnalysis.Builder()
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build()
 
-            analysis.setAnalyzer(executor) { proxy ->
-                processFrame(proxy)
-            }
+            analysis.setAnalyzer(executor) { proxy -> processFrame(proxy) }
 
             try {
                 provider.unbindAll()
@@ -169,7 +175,12 @@ class QrLoginScreen : Fragment() {
 
     @SuppressLint("UnsafeOptInUsageError")
     private fun processFrame(imageProxy: ImageProxy) {
-        if (isHandled) {
+        if (_binding == null) {
+            imageProxy.close()
+            return
+        }
+
+        if (handled.get()) {
             imageProxy.close()
             return
         }
@@ -183,78 +194,85 @@ class QrLoginScreen : Fragment() {
 
         scanner.process(image)
             .addOnSuccessListener { barcodes ->
-                if (isHandled) return@addOnSuccessListener
+                if (_binding == null) return@addOnSuccessListener
+                if (handled.get()) return@addOnSuccessListener
 
                 val raw = barcodes.firstOrNull { !it.rawValue.isNullOrBlank() }?.rawValue
                 if (!raw.isNullOrBlank()) {
-                    isHandled = true
-                    handleTvPairQr(raw)
+                    if (handled.compareAndSet(false, true)) {
+                        view?.post { handleTvPairQr(raw) }
+                    }
                 }
             }
-            .addOnFailureListener {
+            .addOnFailureListener { e ->
+                Log.e("PAIR", "MLKit scan error", e)
             }
             .addOnCompleteListener {
                 imageProxy.close()
             }
     }
 
-    /**
-     * TV QR expected payload:
-     * {"t":"tv_pair","sid":"SESSION_ID","v":1}
-     * Fallback: raw string = sid
-     */
     private fun handleTvPairQr(raw: String) {
+        if (_binding == null) {
+            handled.set(false)
+            return
+        }
+
         val sid = extractSid(raw)
         if (sid.isNullOrBlank()) {
             setState(UiState.Error("Invalid TV QR code"))
+            handled.set(false)
             return
         }
 
         setState(UiState.Sending)
 
-        scope.launch {
-            val token = tokenStore.readToken()
-            if (token.isNullOrBlank()) {
-                setState(UiState.Error("Login token not found. Please login again."))
-                return@launch
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val token = tokenStore.readToken()
+                if (token.isNullOrBlank()) {
+                    setState(UiState.Error("Login token not found. Please login again."))
+                    handled.set(false)
+                    return@launch
+                }
+
+                val ref = firebaseDatabase.getReference("tv_pair_sessions").child(sid)
+
+                val snap = withTimeout(10_000L) { ref.get().await() }
+                Log.d("PAIR", "sid=$sid exists=${snap.exists()} path=$ref")
+
+                if (!snap.exists()) {
+                    setState(UiState.Error("Session not found. Refresh QR on TV."))
+                    handled.set(false)
+                    return@launch
+                }
+
+                val update = hashMapOf<String, Any>(
+                    "token" to token,
+                    "status" to "paired",
+                    "pairedAt" to ServerValue.TIMESTAMP
+                )
+
+                withTimeout(10_000L) { ref.updateChildren(update).await() }
+
+                setState(UiState.Success)
+
+                findNavController().previousBackStackEntry
+                    ?.savedStateHandle
+                    ?.set("tv_pair_result", "TV connected ✅")
+
+                Toast.makeText(requireContext(), "TV connected ✅", Toast.LENGTH_SHORT).show()
+                findNavController().popBackStack()
+
+            } catch (e: Exception) {
+                val msg = when (e) {
+                    is TimeoutCancellationException -> "Timeout. Check internet / Firebase rules."
+                    else -> (e.message ?: e.javaClass.simpleName)
+                }
+                Log.e("PAIR", "pair failed", e)
+                setState(UiState.Error("Connect failed: $msg"))
+                handled.set(false)
             }
-
-            val ref = firebaseDatabase
-                .getReference("tv_pair_sessions")
-                .child(sid)
-
-            ref.get()
-                .addOnSuccessListener { snap ->
-                    if (!snap.exists()) {
-                        setState(UiState.Error("Session not found or expired."))
-                        return@addOnSuccessListener
-                    }
-
-                    val exp = snap.child("expiresAt").getValue(Long::class.java) ?: Long.MAX_VALUE
-                    if (System.currentTimeMillis() > exp) {
-                        setState(UiState.Error("QR expired. Please refresh on TV."))
-                        return@addOnSuccessListener
-                    }
-
-                    ref.child("token").setValue(token)
-                        .addOnSuccessListener {
-                            ref.child("status").setValue("paired")
-
-                            setState(UiState.Success)
-
-                            findNavController().previousBackStackEntry
-                                ?.savedStateHandle
-                                ?.set("tv_pair_result", "TV connected ✅")
-
-                            findNavController().popBackStack()
-                        }
-                        .addOnFailureListener {
-                            setState(UiState.Error("Failed to connect. Try again."))
-                        }
-                }
-                .addOnFailureListener {
-                    setState(UiState.Error("Network error. Try again."))
-                }
         }
     }
 
@@ -268,10 +286,16 @@ class QrLoginScreen : Fragment() {
     }
 
     override fun onDestroyView() {
-        super.onDestroyView()
+        try { cameraProvider?.unbindAll() } catch (_: Exception) {}
+        cameraProvider = null
+        camera = null
+
+        executor.shutdownNow()
+
+        try { scanner.close() } catch (_: Exception) {}
+
         _binding = null
-        executor.shutdown()
-        scanner.close()
+        super.onDestroyView()
     }
 
     companion object {

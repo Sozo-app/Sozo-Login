@@ -16,4 +16,7 @@
     <string name="make_sure_it_fits_inside_the_frame">Make sure it fits inside the frame.</string>
     <string name="ready_to_scan">Ready to scan...</string>
     <string name="sozo_login_manager">Sozo Login Manager</string>
+    <string name="ready_to_scan_tv_qr">Ready to scan TV QR...</string>
+    <string name="connecting">Connecting...</string>
+    <string name="connected">Connected</string>
 </resources>

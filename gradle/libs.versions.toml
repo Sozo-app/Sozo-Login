@@ -20,6 +20,8 @@ coil = "2.7.0"
 
 camerax = "1.4.1"
 mlkit_barcode = "17.3.0"
+googleServices = "4.4.2"
+
 
 
 [libraries]
@@ -55,3 +57,4 @@ firebase-database = { module = "com.google.firebase:firebase-database-ktx" }
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 apollo = { id = "com.apollographql.apollo", version.ref = "apollo" }
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
