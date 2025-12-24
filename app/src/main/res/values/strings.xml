@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">SozoTvLogin</string>
+    <string name="app_name">Sozo Tv Login</string>
     <string name="welcome">Welcome to Sozo</string>
     <string name="hello_blank_fragment">Hello blank fragment</string>
     <string name="connect_to_tv">Connect to TV</string>

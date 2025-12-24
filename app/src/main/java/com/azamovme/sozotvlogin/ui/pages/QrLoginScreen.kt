@@ -247,7 +247,7 @@ class QrLoginScreen : Fragment() {
                     return@launch
                 }
 
-                val update = hashMapOf<String, Any>(
+                val update = hashMapOf(
                     "token" to token,
                     "status" to "paired",
                     "pairedAt" to ServerValue.TIMESTAMP
