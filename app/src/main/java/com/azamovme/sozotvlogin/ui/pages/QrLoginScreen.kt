@@ -236,7 +236,6 @@ class QrLoginScreen : Fragment() {
                         return@addOnSuccessListener
                     }
 
-                    // write token for TV
                     ref.child("token").setValue(token)
                         .addOnSuccessListener {
                             ref.child("status").setValue("paired")
