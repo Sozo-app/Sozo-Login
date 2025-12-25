@@ -105,15 +105,18 @@ class QrLoginScreen : Fragment() {
                     b.tvStatus.text = getString(R.string.ready_to_scan_tv_qr)
                     handled.set(false)
                 }
+
                 UiState.Sending -> {
                     b.progress.visibility = View.VISIBLE
                     b.tvStatus.text = getString(R.string.connecting)
                 }
+
                 is UiState.Error -> {
                     b.progress.visibility = View.GONE
                     b.tvStatus.text = state.msg
                     handled.set(false)
                 }
+
                 UiState.Success -> {
                     b.progress.visibility = View.GONE
                     b.tvStatus.text = getString(R.string.connected)
@@ -259,9 +262,9 @@ class QrLoginScreen : Fragment() {
 
                 findNavController().previousBackStackEntry
                     ?.savedStateHandle
-                    ?.set("tv_pair_result", "TV connected ✅")
+                    ?.set("tv_pair_result", "TV connected ")
 
-                Toast.makeText(requireContext(), "TV connected ✅", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), "TV connected ", Toast.LENGTH_SHORT).show()
                 findNavController().popBackStack()
 
             } catch (e: Exception) {
@@ -286,13 +289,19 @@ class QrLoginScreen : Fragment() {
     }
 
     override fun onDestroyView() {
-        try { cameraProvider?.unbindAll() } catch (_: Exception) {}
+        try {
+            cameraProvider?.unbindAll()
+        } catch (_: Exception) {
+        }
         cameraProvider = null
         camera = null
 
         executor.shutdownNow()
 
-        try { scanner.close() } catch (_: Exception) {}
+        try {
+            scanner.close()
+        } catch (_: Exception) {
+        }
 
         _binding = null
         super.onDestroyView()
